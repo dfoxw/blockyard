@@ -163,8 +163,8 @@ button.big{font-size:46px;padding:20px 96px;border-radius:20px;border-bottom-wid
 button.big::before{content:'▶ '}
 #saveInfo{font-size:14px;opacity:.8;margin-bottom:22px}
 #charRow,#buddyRow{margin:0 0 18px}
-#chars,#buddies{gap:10px}
-#chars .icb canvas{width:60px;height:60px}.icb{border-width:4px;border-radius:14px}
+#chars,#buddies{gap:10px}#chars{gap:7px}
+#chars .icb canvas{width:54px;height:54px}.icb{border-width:4px;border-radius:14px}
 #buddies button{min-width:76px;min-height:76px;border-width:4px;border-radius:14px;font-size:34px;background:rgba(0,0,0,.3)}
 #buddies canvas{width:60px;height:60px}
 button.grown{position:relative;overflow:hidden;font:inherit;font-size:14px;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.35);border-radius:10px;padding:12px 18px;margin-top:10px;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none}
@@ -177,6 +177,15 @@ button.grown.hold::after{width:100%;transition:width 2s linear}
 #cloudMsg{font-size:14px;min-height:20px}#cloudMsg.warn{color:#ffb0a0}#cloudLine{font-size:13px;opacity:.75;margin:-16px 0 20px;min-height:16px}button.big:disabled{opacity:.5}
 #grown details{font-size:15px;margin-bottom:14px}#grown summary{cursor:pointer;padding:8px 0;font-size:16px}
 #grown table{font-size:14px;margin:8px 0}#grown #grownClose{display:block;margin:0 auto}
+#tSpeed{left:18px;bottom:262px;width:84px;height:84px;font-size:30px}
+#custP .pk{max-width:900px}#custP h3{font-size:24px}
+#custWrap{display:flex;gap:18px;align-items:center;justify-content:center;margin-bottom:14px}
+#custPrev{width:180px;height:270px;image-rendering:pixelated;background:rgba(255,255,255,.08);border-radius:14px;flex:none}
+.crow{display:flex;align-items:center;gap:6px;margin:0 0 8px;flex-wrap:wrap;padding-left:92px}.crow span{width:86px;margin-left:-92px;text-align:right;font-size:18px;font-weight:bold;color:#ffe08a;flex:none}
+.csw{width:46px;height:46px;border-radius:12px;border:4px solid rgba(255,255,255,.3);background:rgba(0,0,0,.35);font-size:26px;padding:0;cursor:pointer;line-height:1}
+.csw.on{border-color:#ffe08a;box-shadow:0 0 0 3px #ffe08a}
+#custDone{font-size:22px;padding:12px 40px}
+.icb.mine{position:relative}.icb.mine small{position:absolute;left:0;right:0;bottom:-2px;font-size:11px;font-weight:bold;color:#fff;text-shadow:1px 1px 0 #000,-1px -1px 0 #000}
 </style>
 </head>
 <body>
@@ -197,6 +206,7 @@ button.grown.hold::after{width:100%;transition:width 2s linear}
   <button class="tb" id="tLift" aria-label="Put a block under me and lift me up">🛗<small>Lift me</small></button>
   <button class="tb" id="tJump" aria-label="Jump or fly up">⬆️<small>Jump</small></button>
   <button class="tb" id="tDown" aria-label="Fly down">⬇️<small>Down</small></button>
+  <button class="tb" id="tSpeed" aria-label="Walking speed: slow, walk or run"><span>🚶</span><small>Walk</small></button>
   <button class="tb top" id="tFly" aria-label="Fly on or off">✈️<small>Fly</small></button>
   <button class="tb top" id="tFriends" aria-label="Friends">👫<small>Friends</small></button>
   <button class="tb top" id="tPlans" aria-label="Building plans">📐<small>Plans</small></button>
@@ -212,6 +222,11 @@ button.grown.hold::after{width:100%;transition:width 2s linear}
 <div id="reportP" class="panel off"><div class="pk"><h3>Quiz report</h3><div id="report"></div><button class="small" id="rclose">Close</button></div></div>
 <div id="storeP" class="panel off"><div class="pk"><div id="sstars"></div><div id="stabs" class="row"></div><div id="sgrid"></div><button class="small" id="stclose">Close</button></div></div>
 <div id="shapesP" class="panel off"><div class="pk"><h3>Pick a shape. It works with every block</h3><div id="shapes" class="row"></div><button class="small" id="sclose" style="margin-top:14px">Close</button></div></div>
+<div id="custP" class="panel off"><div class="pk">
+  <h3>🎨 Make my own</h3>
+  <div id="custWrap"><canvas id="custPrev" width="180" height="270"></canvas><div id="custRows"></div></div>
+  <button class="mid" id="custDone">✔ Done</button>
+</div></div>
 <div id="friendsP" class="panel off"><div class="pk">
   <h3>Your friends (tap one to send it home)</h3><div id="fmine" class="row"></div>
   <h3 style="margin-top:16px">Add a friend</h3><div id="fadd" class="row"></div>
@@ -1183,7 +1198,7 @@ renderBar();setSel(sel);
 function persist(){try{localStorage.setItem(KEY2,JSON.stringify(store));return localStorage.getItem(KEY2)!==null;}catch(e){return false;}}
 function save(){
   if(visiting)return saveOK;   // someone else's world: nothing of it is written
-  prof.data={seed,edits,sel,fly,easy,view,hot:HOT,buddy,inv,limit,friends,char:pchar,stars,owned,kit2:1,dt:Math.round(dayT),quest,bp:bp?{k:bp.k,x:bp.x,y:bp.y,z:bp.z,fx:bp.fx,fz:bp.fz}:null,qt:Math.round(playT),p:[P.x,P.y,P.z,P.yaw,P.pitch].map(v=>Math.round(v*100)/100)};
+  prof.data={seed,edits,sel,fly,easy,view,hot:HOT,buddy,inv,limit,friends,char:pchar,cust,spd,stars,owned,kit2:1,dt:Math.round(dayT),quest,bp:bp?{k:bp.k,x:bp.x,y:bp.y,z:bp.z,fx:bp.fx,fz:bp.fz}:null,qt:Math.round(playT),p:[P.x,P.y,P.z,P.yaw,P.pitch].map(v=>Math.round(v*100)/100)};
   if(played){prof.t=Date.now();played=false;}
   saveOK=persist();dirtySave=false;saveInfo();cloudTick();return saveOK;
 }
@@ -1289,7 +1304,7 @@ const CHARS={
     {o:[0,1.62,-.05],s:[.08,.1,.14],c:[240,140,40]},{o:[0,1.62,.12],s:[.08,.08,.1],c:[240,140,40]},{o:[0,1.2,.25],s:[.08,.14,.12],c:[240,140,40]}],1))
 };
 Object.assign(NPCT,CHARS);
-const FRIENDK=Object.keys(NPCT),PCHARS=[...Object.keys(CHARS),'robot'];
+const FRIENDK=Object.keys(NPCT),PCHARS=[...Object.keys(CHARS),'robot','custom'];
 // special friends, bought in the store with stars
 Object.assign(NPCT,{
   dragon:{name:'Dragon',hw:.45,h:1.6,sp:1.7,ic:[[200,50,50],[250,210,60]],parts:prep(quad({w:.5,h:.46,l:1,leg:.4,hs:.42,c1:[200,50,50],c2:[150,36,40],ex:(p,hy,hz)=>{
@@ -1320,8 +1335,48 @@ Object.assign(NPCT,{
 
 const hasNPC=k=>typeof k==='string'&&Object.prototype.hasOwnProperty.call(NPCT,k);
 const validFriends=f=>Array.isArray(f)?f.filter(hasNPC).slice(0,8):[];
+/* ---------- make-your-own character: skin, hair, clothes, a hat and something to carry, all picked by tapping ---------- */
+const C_SKIN=[[250,222,196],[240,200,160],[205,155,115],[150,100,70],[96,64,44]];
+const C_HAIR=[[40,32,28],[96,60,30],[170,110,50],[236,200,90],[200,70,40],[232,232,238],[60,120,220],[240,120,190]];
+const C_COL=[[200,50,46],[236,130,40],[240,204,60],[60,170,70],[40,150,160],[52,84,196],[130,70,190],[240,130,180],[245,245,245],[44,44,54],[120,84,50]];
+const C_STYLE=[['short','✂️'],['long','💇'],['spiky','⚡'],['none','🥚']];
+const C_HAT=[['none','🚫'],['cap','🧢'],['crown','👑'],['wizard','🧙'],['helmet','⛑️'],['straw','👒'],['ears','🐰']];
+const C_EX=[['none','🚫'],['backpack','🎒'],['cape','🦸'],['wings','🕊️'],['shield','🛡️']];
+function validCust(c){
+  c=c&&typeof c==='object'?c:{};const n=(v,m,d)=>Number.isInteger(v)&&v>=0&&v<m?v:d;
+  return{skin:n(c.skin,C_SKIN.length,1),hair:n(c.hair,C_HAIR.length,1),style:n(c.style,C_STYLE.length,0),shirt:n(c.shirt,C_COL.length,3),pants:n(c.pants,C_COL.length,5),hat:n(c.hat,C_HAT.length,0),ex:n(c.ex,C_EX.length,0)};
+}
+let cust=validCust(saved&&saved.cust);
+function buildCust(){
+  const sk=C_SKIN[cust.skin],hr=C_HAIR[cust.hair],sh=C_COL[cust.shirt],pa=C_COL[cust.pants],st=C_STYLE[cust.style][0],hat=C_HAT[cust.hat][0],ex=C_EX[cust.ex][0];
+  const G=[250,210,60],PU=[110,60,170],ST=[226,190,90],WH=[248,248,252],HC={cap:sh,crown:G,wizard:PU,helmet:[170,176,186],straw:ST,ears:WH};
+  const parts=kid({skin:sk,shirt:sh,sleeve:sh,pants:pa,ex:p=>{
+    for(const sx of[-1,1])p.push({o:[sx*.32,.8,0],s:[.151,.12,.181],c:sk,ph:sx<0?Math.PI:0,sw:.2});   // hands
+    if(st!=='none')p.push({o:[0,1.74,0],s:[.44,.08,.44],c:hr},{o:[0,1.42,.2],s:[.44,.34,.05],c:hr});
+    if(st==='long')p.push({o:[0,1.0,.2],s:[.44,.44,.06],c:hr},{o:[-.21,1.28,.03],s:[.04,.42,.3],c:hr},{o:[.21,1.28,.03],s:[.04,.42,.3],c:hr});
+    if(st==='spiky')for(const x of[-.14,0,.14])p.push({o:[x,1.8,0],s:[.09,.1,.32],c:hr});
+    if(hat==='cap')p.push({o:[0,1.78,0],s:[.46,.1,.46],c:sh},{o:[0,1.78,-.3],s:[.34,.04,.16],c:sh});
+    if(hat==='crown'){p.push({o:[0,1.8,0],s:[.44,.08,.44],c:G},{o:[0,1.82,-.225],s:[.08,.05,.02],c:[220,40,60]});for(const x of[-.17,.17])for(const z of[-.17,.17])p.push({o:[x,1.88,z],s:[.09,.1,.09],c:G});}
+    if(hat==='wizard')p.push({o:[0,1.79,0],s:[.58,.05,.58],c:PU},{o:[0,1.84,0],s:[.36,.16,.36],c:PU},{o:[0,2.0,0],s:[.24,.16,.24],c:PU},{o:[0,2.16,0],s:[.12,.14,.12],c:PU},{o:[0,1.84,0],s:[.38,.05,.38],c:G});
+    if(hat==='helmet')p.push({o:[0,1.65,0],s:[.48,.2,.48],c:[170,176,186]},{o:[0,1.85,0],s:[.08,.14,.32],c:[200,40,40]});
+    if(hat==='straw')p.push({o:[0,1.79,0],s:[.7,.04,.7],c:ST},{o:[0,1.83,0],s:[.4,.14,.4],c:ST},{o:[0,1.83,0],s:[.42,.05,.42],c:[200,60,50]});
+    if(hat==='ears')for(const sx of[-1,1])p.push({o:[sx*.11,1.8,.02],s:[.1,.26,.06],c:WH},{o:[sx*.11,1.83,-.012],s:[.05,.18,.02],c:[244,170,190]});
+    if(ex==='backpack')p.push({o:[0,.86,.2],s:[.34,.42,.14],c:[96,72,50]},{o:[0,1.0,.275],s:[.2,.12,.02],c:[150,116,80]});
+    if(ex==='cape')p.push({o:[0,.72,.16],s:[.48,.7,.04],c:[200,40,40]});
+    if(ex==='wings')for(const sx of[-1,1])p.push({o:[sx*.36,.95,.2],s:[.42,.44,.04],c:WH,ph:sx<0?0:Math.PI,sw:.03},{o:[sx*.62,1.1,.2],s:[.2,.4,.04],c:[226,232,244]});
+    if(ex==='shield')p.push({o:[-.42,.85,-.05],s:[.06,.42,.36],c:[52,84,196]},{o:[-.455,.98,-.05],s:[.02,.16,.14],c:G});
+  }});
+  NPCT.custom=mk('My own',{hat:hat==='none'?(st==='none'?sk:hr):HC[hat],skin:sk,shirt:sh,pants:pa},parts);
+}
+buildCust();
+// the character seen from the front, drawn from the same pieces the game uses
+function drawFront(cv2,parts){
+  const g=cv2.getContext('2d'),S=cv2.height/2.42,cx=cv2.width/2,base=cv2.height-6;g.clearRect(0,0,cv2.width,cv2.height);
+  for(const q of parts.slice().sort((a,b)=>(b.o[2]+b.s[2]/2)-(a.o[2]+a.s[2]/2)||(b.o[2]-a.o[2]))){
+    g.fillStyle='rgb('+q.c.map(v=>Math.round(v*255)).join(',')+')';g.fillRect(Math.round(cx+(q.o[0]-q.s[0]/2)*S),Math.round(base-(q.o[1]+q.s[1])*S),Math.max(1,Math.round(q.s[0]*S)),Math.max(1,Math.round(q.s[1]*S)));}
+}
 const validChar=k=>PCHARS.includes(k)?k:'explorer';
-let friends=validFriends(saved&&saved.friends),pchar=validChar(saved&&saved.char);
+let friends=validFriends(saved&&saved.friends),pchar=validChar(saved&&saved.char),spd=[0,1,2].includes(saved&&saved.spd)?saved.spd:1;
 const AVRGB={15:[196,52,46],16:[52,84,196],17:[232,196,52],19:[60,170,70],18:[232,130,40],20:[140,70,190],21:[240,130,180],23:[240,200,60],24:[80,215,228],0:[92,158,54],12:[152,72,56],9:[166,134,80],13:[226,232,240],3:[126,126,128]};
 let shirt=[.2,.33,.77];const PL={T:NPCT[pchar],x:0,y:0,z:0,yaw:0,t:0,amp:0};
 const validBuddy=b=>(b==='none'||hasNPC(b))?b:'dog';
@@ -1443,9 +1498,28 @@ function charIcon(k){
 const entIcon=k=>NPCT[k].look?charIcon(k):npcIcon(k);
 function icb(k,on){const b=document.createElement('button');b.type='button';b.className='icb'+(on?' on':'');b.title=NPCT[k].name;b.setAttribute('aria-label',NPCT[k].name);b.append(entIcon(k));return b;}
 function setChar(k){pchar=validChar(k);PL.T=NPCT[pchar];renderChars();}
+/* make-your-own character: the picker */
+function renderCust(){
+  drawFront($('custPrev'),NPCT.custom.parts);
+  const box=$('custRows');box.replaceChildren();
+  const row=(label,key,opts,paint)=>{const r=document.createElement('div');r.className='crow';const l=document.createElement('span');l.textContent=label;r.append(l);
+    opts.forEach((o,i)=>{const b=document.createElement('button');b.type='button';b.className='csw'+(cust[key]===i?' on':'');paint(b,o);
+      b.addEventListener('click',()=>{cust[key]=i;buildCust();setChar('custom');renderCust();save();});r.append(b);});box.append(r);};
+  const colr=(b,c)=>{b.style.background='rgb('+c.join(',')+')';},emo=(b,o)=>{b.textContent=o[1];b.setAttribute('aria-label',o[0]);};
+  row('Skin','skin',C_SKIN,colr);row('Hair','hair',C_HAIR,colr);row('Hair cut','style',C_STYLE,emo);row('Shirt','shirt',C_COL,colr);row('Pants','pants',C_COL,colr);row('Hat','hat',C_HAT,emo);row('Extra','ex',C_EX,emo);
+}
+$('custDone').addEventListener('click',()=>$('custP').classList.add('off'));
+/* walking speed: one button, three speeds */
+const SPD=[['🐢','Slow',.55],['🚶','Walk',1],['🏃','Run',1.7]];
+function setSpd(v){spd=[0,1,2].includes(v)?v:1;const b=$('tSpeed');b.firstChild.textContent=SPD[spd][0];b.lastChild.textContent=SPD[spd][1];dirtySave=true;}
+hold('tSpeed',()=>{setSpd((spd+1)%3);snd(380+spd*160,520+spd*160,'sine');});
+{const b=$('tSpeed');b.firstChild.textContent=SPD[spd][0];b.lastChild.textContent=SPD[spd][1];}
+
 function renderChars(){
   const box=$('chars');box.replaceChildren();
-  for(const k of PCHARS){const b=icb(k,k===pchar);b.addEventListener('click',()=>{setChar(k);save();});box.append(b);}
+  for(const k of PCHARS){const b=icb(k,k===pchar);
+    if(k==='custom'){b.classList.add('mine');const t=document.createElement('small');t.textContent='🎨 Make';b.append(t);}
+    b.addEventListener('click',()=>{setChar(k);save();if(k==='custom'){renderCust();$('custP').classList.remove('off');}});box.append(b);}
 }
 function dropFriendNPCs(){for(let j=npcs.length-1;j>=0;j--)if(npcs[j].fid>=0)npcs.splice(j,1);}
 function renderFriends(){
@@ -2020,7 +2094,7 @@ function applyData(d){
   seed=(d&&d.seed)|0||((Math.random()*2147483647)|0);edits=(d&&d.edits)||{};
   easy=!(d&&d.easy===false);$('easy').checked=easy;playT=+(d&&d.qt)||0;
   if(d&&d.p&&d.p.length===5){[P.x,P.y,P.z,P.yaw,P.pitch]=d.p;P.vx=P.vy=P.vz=0;}else spawn();
-  inv=validInv(d&&d.inv);loadWallet(d);updStars();limit=!(d&&d.limit===false);$('limit').checked=limit;friends=validFriends(d&&d.friends);setChar(d&&d.char);curShape=0;
+  inv=validInv(d&&d.inv);loadWallet(d);updStars();limit=!(d&&d.limit===false);$('limit').checked=limit;friends=validFriends(d&&d.friends);cust=validCust(d&&d.cust);buildCust();setChar(d&&d.char);setSpd(d&&d.spd);curShape=0;
   HOT=validHot(d&&d.hot);renderBar();buddy=validBuddy(d&&d.buddy);npcs.length=0;renderBuddies();setView(d&&d.view===0?0:1);
   setSel((d&&d.sel)|0);setFly(!!(d&&d.fly));playLabel();
 }
@@ -2090,7 +2164,7 @@ function cleanData(d){
     const o={};for(const i in d.edits[k]){const v=d.edits[k][i]|0,m=v&255,cd=v>>8;if(/^\d{1,5}$/.test(i)&&+i<16*16*H&&v>=0&&m<B.length&&cd<=SHB.length&&(cd===0||m>0))o[i]=v;}
     edits[k]=o;}
   const p=Array.isArray(d.p)&&d.p.length===5&&d.p.every(v=>typeof v==='number'&&isFinite(v))?d.p:undefined;
-  return{seed:d.seed|0,edits,hot:validHot(d.hot),buddy:validBuddy(d.buddy),view:d.view===0?0:1,inv:validInv(d.inv),stars:Math.max(0,Math.min(99999,d.stars|0)),owned:Array.isArray(d.owned)?d.owned.filter(k=>typeof k==='string').slice(0,20):[],kit2:d.kit2?1:0,dt:Math.max(0,Math.min(DAYLEN,+d.dt||0)),quest:validQuest(d.quest),bp:validBP(d.bp),limit:d.limit!==false,friends:validFriends(d.friends),char:validChar(d.char),sel:d.sel|0,fly:!!d.fly,easy:d.easy!==false,qt:Math.max(0,Math.min(QUIZ_EVERY,+d.qt||0)),p};
+  return{seed:d.seed|0,edits,hot:validHot(d.hot),buddy:validBuddy(d.buddy),view:d.view===0?0:1,inv:validInv(d.inv),stars:Math.max(0,Math.min(99999,d.stars|0)),owned:Array.isArray(d.owned)?d.owned.filter(k=>typeof k==='string').slice(0,20):[],kit2:d.kit2?1:0,dt:Math.max(0,Math.min(DAYLEN,+d.dt||0)),quest:validQuest(d.quest),bp:validBP(d.bp),limit:d.limit!==false,friends:validFriends(d.friends),char:validChar(d.char),cust:validCust(d.cust),spd:[0,1,2].includes(d.spd)?d.spd:1,sel:d.sel|0,fly:!!d.fly,easy:d.easy!==false,qt:Math.max(0,Math.min(QUIZ_EVERY,+d.qt||0)),p};
 }
 function cleanProf(p){
   if(!p||typeof p.name!=='string'||!p.name.trim())return null;
@@ -2165,7 +2239,7 @@ function update(dt){
   if(flying){
     const sp=ride?ride.sp:(shift&&!jump?11:14);P.vx=wx*sp;P.vz=wz*sp;P.vy=((jump?1:0)-(shift?1:0))*9;
   }else{
-    const sp=ride?(ride.wsp&&inWater?ride.wsp:ride.sp):(shift?6.6:4.4)*(inWater?.6:1),k=Math.min(1,dt*(P.ground||inWater?12:5));
+    const sp=ride?(ride.wsp&&inWater?ride.wsp:ride.sp):(shift?6.6:4.4)*SPD[spd][2]*(inWater?.6:1),k=Math.min(1,dt*(P.ground||inWater?12:5));
     P.vx+=(wx*sp-P.vx)*k;P.vz+=(wz*sp-P.vz)*k;
     if(inWater){P.vy-=7*dt;P.vy*=Math.max(0,1-2.5*dt);if(jump)P.vy=P.wall?6.5:Math.min(P.vy+22*dt,3.2);if(P.vy<-3.5)P.vy=-3.5;}
     else{P.vy-=28*dt;
