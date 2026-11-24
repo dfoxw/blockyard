@@ -151,6 +151,30 @@ button.mid{font:inherit;font-size:15px;padding:10px 16px;color:#fff;background:#
 #xtext{width:100%;height:90px;font:inherit;font-size:11px;margin:8px 0}
 #xmsg{min-height:22px;color:#ffe08a;font-size:14px;margin:14px 0;line-height:1.5}
 #err{color:#ff9a9a;font-size:13px;margin-top:10px}
+
+/* start screen made for a young child: few words, big pictures, one big green button */
+#menu{background:rgba(12,24,42,.94)}
+.card{max-width:780px}
+.lbl{font-size:24px;font-weight:bold;margin:0 0 10px;color:#ffe08a}
+#profs{gap:14px;margin-bottom:20px}
+.prof{width:136px;min-height:136px;font-size:22px;font-weight:bold;border-width:4px;border-radius:16px;padding:12px 6px 8px}
+.prof canvas{width:72px;height:72px}.prof small{display:none}.prof.add{font-size:56px}
+button.big{font-size:46px;padding:20px 96px;border-radius:20px;border-bottom-width:7px;font-weight:bold;margin-bottom:6px}
+button.big::before{content:'▶ '}
+#saveInfo{font-size:14px;opacity:.8;margin-bottom:22px}
+#charRow,#buddyRow{margin:0 0 18px}
+#chars,#buddies{gap:10px}
+#chars .icb canvas{width:60px;height:60px}.icb{border-width:4px;border-radius:14px}
+#buddies button{min-width:76px;min-height:76px;border-width:4px;border-radius:14px;font-size:34px;background:rgba(0,0,0,.3)}
+#buddies canvas{width:60px;height:60px}
+button.grown{position:relative;overflow:hidden;font:inherit;font-size:14px;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.35);border-radius:10px;padding:12px 18px;margin-top:10px;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none}
+button.grown::after{content:'';position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(255,224,138,.35)}
+button.grown.hold::after{width:100%;transition:width 2s linear}
+#grown .pk{max-width:720px;text-align:left}#grown h3{font-size:22px;text-align:center}
+#grown label.opt{font-size:16px;margin-bottom:16px;line-height:1.4}#grown label.opt input{width:24px;height:24px;vertical-align:-5px;margin-right:10px}
+.gbtn{gap:10px;justify-content:flex-start;margin:6px 0 16px}.gbtn button.small{font-size:16px;padding:12px 16px;border-radius:8px}
+#grown details{font-size:15px;margin-bottom:14px}#grown summary{cursor:pointer;padding:8px 0;font-size:16px}
+#grown table{font-size:14px;margin:8px 0}#grown #grownClose{display:block;margin:0 auto}
 </style>
 </head>
 <body>
@@ -202,17 +226,29 @@ button.mid{font:inherit;font-size:15px;padding:10px 16px;color:#fff;background:#
 </div></div>
 <div id="menu"><div class="card">
   <h1>BLOCKYARD</h1>
-  <div class="sub">an endless world of blocks — dig it up, build it back</div>
+  <div class="lbl">Who is playing?</div>
   <div id="profs"></div>
   <div id="addForm" class="off">
     <input id="pname" maxlength="12" placeholder="Name (you can leave this empty)" autocomplete="off">
     <div id="avs"></div>
     <div class="row"><button class="mid" id="addOk">Add player</button><button class="small" id="addCancel">Cancel</button></div>
   </div>
-  <div id="charRow">Play as<div id="chars" class="row"></div></div>
-  <div id="buddyRow">Buddy who follows this player<div id="buddies" class="row"></div></div>
   <button class="big" id="play">Play</button>
   <div id="saveInfo"></div>
+  <div id="charRow"><div class="lbl">Me</div><div id="chars" class="row"></div></div>
+  <div id="buddyRow"><div class="lbl">My buddy</div><div id="buddies" class="row"></div></div>
+  <button class="grown" id="grownOpen">🔒 Grown-ups: hold for 2 seconds</button>
+  <div id="err"></div>
+</div></div>
+<div id="grown" class="panel off"><div class="pk">
+  <h3>Grown-ups</h3>
+
+  <label class="opt" for="gfx3d"><input type="checkbox" id="gfx3d">3D lighting: real shadows and lamp light. Untick it if the game is jumpy</label>
+  <label class="opt" for="music"><input type="checkbox" id="music">Music and rain sounds</label>
+  <label class="opt" for="limit"><input type="checkbox" id="limit">Blocks must be earned: dig them up, or win them by answering questions</label>
+  <label class="opt" for="easy"><input type="checkbox" id="easy">Easy mode: runs whichever way the stick points, steps up blocks and floats in water by itself, longer reach</label>
+  <div class="row gbtn"><button class="small" id="xferOpen">Save to a file / Load a file</button><button class="small" id="visitOpen">Visit a player's world</button><button class="small" id="reportOpen">Grown-ups: quiz report</button><button class="small" id="testOpen">Quarter 2 test</button><button class="small" id="tryQuiz">Try a quiz question</button><button class="small" id="newWorld">New world</button><button class="small" id="renProf">Rename player</button><button class="small" id="delProf">Delete player</button></div>
+  <details><summary>How to play</summary>
   <table>
     <tr class="tc"><td>Left thumb</td><td>the round stick: he runs whichever way you push it</td></tr>
     <tr class="tc"><td>Right thumb</td><td>drag to look up and down or around</td></tr>
@@ -235,12 +271,8 @@ button.mid{font:inherit;font-size:15px;padding:10px 16px;color:#fff;background:#
     <tr><td>Quiz</td><td>play time runs out after 5 minutes. A right answer gives 5 more and a prize of blocks. Every question comes from the school's Quarter 2 list or from the Word Catch words, and gets harder or easier to fit each player</td></tr>
     <tr><td>Quarter 2 test</td><td>one question for every item on the list, with no second tries. Results are saved in the grown-ups' report</td></tr>
   </table>
-  <label class="opt" for="gfx3d"><input type="checkbox" id="gfx3d">3D lighting: real shadows and lamp light. Untick it if the game is jumpy</label>
-  <label class="opt" for="music"><input type="checkbox" id="music">Music and rain sounds</label>
-  <label class="opt" for="limit"><input type="checkbox" id="limit">Blocks must be earned: dig them up, or win them by answering questions</label>
-  <label class="opt" for="easy"><input type="checkbox" id="easy">Easy mode: runs whichever way the stick points, steps up blocks and floats in water by itself, longer reach</label>
-  <div class="row"><button class="small" id="xferOpen">Save to a file / Load a file</button><button class="small" id="visitOpen">Visit a player's world</button><button class="small" id="reportOpen">Grown-ups: quiz report</button><button class="small" id="testOpen">Quarter 2 test</button><button class="small" id="tryQuiz">Try a quiz question</button><button class="small" id="newWorld">New world</button><button class="small" id="renProf">Rename player</button><button class="small" id="delProf">Delete player</button></div>
-  <div id="err"></div>
+  </details>
+  <button class="mid" id="grownClose">Close</button>
 </div></div>
 <div id="picker" class="off"><div class="pk"><div id="pgrid"></div><button class="small" id="pclose">Close</button></div></div>
 <div id="xfer" class="off"><div class="card">
@@ -1889,6 +1921,15 @@ function watch3(fps){
   if(T3.sun.castShadow){lowFps=fps<17?lowFps+1:0;if(lowFps>=8){T3.sun.castShadow=false;store.shadows=false;persist();toast('Shadows turned off to keep the game smooth');lowFps=0;}}
   else if(!warned3){lowFps2=fps<14?lowFps2+1:0;if(lowFps2>=12){warned3=true;toast('The game is running slowly. Untick "3D lighting" on the start screen for smoother play.');}}
 }
+
+/* grown-ups panel: opens only after a 2-second hold, so a child can't wander into delete or settings */
+{const g=$('grownOpen');let gt=0;
+ const stop=()=>{clearTimeout(gt);g.classList.remove('hold');};
+ g.addEventListener('pointerdown',e=>{e.preventDefault();stop();void g.offsetWidth;g.classList.add('hold');gt=setTimeout(()=>{stop();$('grown').classList.remove('off');},2000);});
+ for(const n of['pointerup','pointerleave','pointercancel'])g.addEventListener(n,stop);
+ g.addEventListener('contextmenu',e=>e.preventDefault());
+ $('grownClose').addEventListener('click',()=>$('grown').classList.add('off'));
+ $('grown').addEventListener('click',e=>{const b=e.target.closest('.gbtn button');if(b&&b.id!=='newWorld'&&b.id!=='delProf')$('grown').classList.add('off');});}
 /* ---------- player profiles ---------- */
 function applyData(d){
   visiting=null;$('visitBar').classList.add('off');ride=null;rideUI();
