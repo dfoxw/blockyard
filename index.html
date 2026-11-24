@@ -186,6 +186,13 @@ button.grown.hold::after{width:100%;transition:width 2s linear}
 .csw.on{border-color:#ffe08a;box-shadow:0 0 0 3px #ffe08a}
 #custDone{font-size:22px;padding:12px 40px}
 .icb.mine{position:relative}.icb.mine small{position:absolute;left:0;right:0;bottom:-2px;font-size:11px;font-weight:bold;color:#fff;text-shadow:1px 1px 0 #000,-1px -1px 0 #000}
+/* second stick, bottom right, turns the view; the action buttons sit in two rows above it */
+#stick2{position:fixed;right:26px;bottom:96px;width:140px;height:140px;border-radius:50%;border:3px solid rgba(255,255,255,.5);background:rgba(0,0,0,.2);touch-action:none;display:none}
+#knob2{position:absolute;left:50%;top:50%;width:62px;height:62px;margin:-31px;border-radius:50%;background:rgba(255,255,255,.65);pointer-events:none}
+#stick2 small{position:absolute;left:0;right:0;bottom:-20px;text-align:center;font-size:13px;font-weight:bold;color:#fff;text-shadow:1px 1px 0 #000,-1px -1px 0 #000;pointer-events:none}
+body.two #stick2{display:block}
+body.two #tDig,body.two #tBuild,body.two #tStack{bottom:262px}
+body.two #tJump,body.two #tLift,body.two #tDown{bottom:382px}
 </style>
 </head>
 <body>
@@ -200,6 +207,7 @@ button.grown.hold::after{width:100%;transition:width 2s linear}
 <div id="bar"></div>
 <div id="touch">
   <div id="stick"><div id="knob"></div></div>
+  <div id="stick2" aria-label="Look around"><div id="knob2"></div><small>Look</small></div>
   <button class="tb" id="tDig" aria-label="Dig">⛏️<small>Dig</small></button>
   <button class="tb" id="tBuild" aria-label="Build">🧱<small>Build</small></button>
   <button class="tb" id="tStack" aria-label="Build on top, to go higher">🏗️<small>Build up</small></button>
@@ -262,6 +270,7 @@ button.grown.hold::after{width:100%;transition:width 2s linear}
   <h3>Grown-ups</h3>
 
   <label class="opt" for="gfx3d"><input type="checkbox" id="gfx3d">3D lighting: real shadows and lamp light. Untick it if the game is jumpy</label>
+  <label class="opt" for="twoStick"><input type="checkbox" id="twoStick">Second stick on the right for looking around (swiping the screen still works)</label>
   <label class="opt" for="music"><input type="checkbox" id="music">Music and rain sounds</label>
   <label class="opt" for="limit"><input type="checkbox" id="limit">Blocks must be earned: dig them up, or win them by answering questions</label>
   <label class="opt" for="easy"><input type="checkbox" id="easy">Easy mode: runs whichever way the stick points, steps up blocks and floats in water by itself, longer reach</label>
@@ -802,6 +811,17 @@ function pick(dir){const tp=dir&&view,h=raycast((easy?8:6)+(tp?camD:0),dir,tp?CA
 /* ---------- input ---------- */
 const keys={};let playing=false,locked=false,drag=null,mineHeld=false,mineT=0,placeHeld=false,placeT=0,isTouch=false;
 let stick=null,lookT=null,tsx=0,tsy=0;
+// second stick: how far it is pushed sets how fast the view turns
+let lx=0,ly=0;
+{const el=$('stick2'),kn=$('knob2');let id=null;
+ const set=e=>{const r=el.getBoundingClientRect();lx=Math.max(-1,Math.min(1,(e.clientX-r.left-r.width/2)/50));ly=Math.max(-1,Math.min(1,(e.clientY-r.top-r.height/2)/50));kn.style.transform='translate('+lx*42+'px,'+ly*42+'px)';};
+ const end=e=>{if(e.pointerId!==id)return;id=null;lx=ly=0;kn.style.transform='';};
+ el.addEventListener('pointerdown',e=>{e.preventDefault();if(!playing||id!==null)return;id=e.pointerId;try{el.setPointerCapture(id);}catch(_){}set(e);});
+ el.addEventListener('pointermove',e=>{if(e.pointerId===id)set(e);});
+ for(const n of['pointerup','pointercancel','lostpointercapture'])el.addEventListener(n,end);
+ const on=v=>{document.body.classList.toggle('two',v);$('twoStick').checked=v;};
+ on(store.stick2!==false);
+ $('twoStick').addEventListener('change',e=>{store.stick2=e.target.checked;on(store.stick2);persist();});}
 function look(dx,dy){const k=easy?.0016:.0024;P.yaw-=dx*k;P.pitch=Math.max(-1.55,Math.min(1.55,P.pitch-dy*k));}
 let lastInput=0;for(const n of['pointerdown','pointermove','touchstart','touchmove','keydown'])addEventListener(n,()=>{lastInput=performance.now();},{passive:true,capture:true});
 function startGame(){
@@ -1089,7 +1109,7 @@ function showPrizes(){
 }
 function openQuiz(forced){
   if(quizOpen)return;$('qback').textContent='Back to the game';qForced=!!forced;$('qback').style.display=qForced?'none':'';
-  quizOpen=true;quizResume=playing;playing=false;mineHeld=placeHeld=false;drag=null;lookT=null;resetStick();
+  quizOpen=true;quizResume=playing;playing=false;mineHeld=placeHeld=false;drag=null;lookT=null;lx=ly=0;resetStick();
   for(const k in keys)keys[k]=false;
   if(document.pointerLockElement)document.exitPointerLock();
   $('qgo').style.display='none';quizEl.classList.remove('off');showQuestion();askAloud();
@@ -2308,6 +2328,8 @@ function update(dt){
   if(mineHeld){mineT-=dt;if(mineT<=0){mine();mineT=.22;}}
   if(placeHeld){placeT-=dt;if(placeT<=0){place();placeT=.3;}}
   if(repFn){repT-=dt;if(repT<=0){repFn();repT=.28;}}
+  const lk=Math.hypot(lx,ly)>.15;
+  if(lk){P.yaw-=lx*Math.abs(lx)*2.1*dt;P.pitch=Math.max(-1.55,Math.min(1.55,P.pitch-ly*Math.abs(ly)*1.3*dt));}
   const dead=Math.hypot(tsx,tsy)<.18,jx=dead?0:tsx,jy=dead?0:tsy;
   const kx=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
   const tank=easy&&!view,rel=easy&&view;   // close-up view: stick turns. Far view: run whichever way the stick points
@@ -2319,7 +2341,7 @@ function update(dt){
   if(rel){
     if(len>.15){
       const want=Math.atan2(-wx,-wz);let df=want-P.face;df=Math.atan2(Math.sin(df),Math.cos(df));P.face+=df*Math.min(1,dt*12);
-      if(!lookT&&!drag)P.yaw+=Math.sin(want-P.yaw)*.4*dt*Math.min(1,len);   // camera drifts round behind him
+      if(!lookT&&!drag&&!lk)P.yaw+=Math.sin(want-P.yaw)*.4*dt*Math.min(1,len);   // camera drifts round behind him
     }
   }else P.face=P.yaw;
   const fx=Math.floor(P.x),fz=Math.floor(P.z);
