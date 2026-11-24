@@ -53,7 +53,7 @@ input,textarea{user-select:text;-webkit-user-select:text}
 .ph{grid-column:1/-1;text-align:left;font-size:13px;margin:8px 0 0;opacity:.85}
 #saveInfo{font-size:13px;margin:10px 0 0;opacity:.9;min-height:18px}
 #saveInfo.warn{color:#ffb0a0;opacity:1}
-#tPlans{right:478px}
+#tPlans{right:478px}#tHome{right:556px}
 #tRide{right:330px;bottom:220px;width:92px;height:92px;font-size:30px;display:none}
 body.ride #tRide{display:flex}
 body.ride #tLift{display:none}
@@ -207,6 +207,7 @@ button.grown.hold::after{width:100%;transition:width 2s linear}
   <button class="tb" id="tJump" aria-label="Jump or fly up">⬆️<small>Jump</small></button>
   <button class="tb" id="tDown" aria-label="Fly down">⬇️<small>Down</small></button>
   <button class="tb" id="tSpeed" aria-label="Walking speed: slow, walk or run"><span>🚶</span><small>Walk</small></button>
+  <button class="tb top" id="tHome" aria-label="Go home">🏠<small>Home</small></button>
   <button class="tb top" id="tFly" aria-label="Fly on or off">✈️<small>Fly</small></button>
   <button class="tb top" id="tFriends" aria-label="Friends">👫<small>Friends</small></button>
   <button class="tb top" id="tPlans" aria-label="Building plans">📐<small>Plans</small></button>
@@ -755,7 +756,7 @@ function mine(dir){
   let fill=AIR;
   if(getBlock(h.x,h.y+1,h.z)===WATER||getBlock(h.x+1,h.y,h.z)===WATER||getBlock(h.x-1,h.y,h.z)===WATER||getBlock(h.x,h.y,h.z+1)===WATER||getBlock(h.x,h.y,h.z-1)===WATER)fill=WATER;
   const mat=itemOf(h.id,h.x,h.y,h.z);if(limit&&ITEMS.includes(mat)){inv[mat]=(inv[mat]|0)+1;updCounts();}
-  setBlock(h.x,h.y,h.z,fill);snd(190,70,'square');
+  setBlock(h.x,h.y,h.z,fill);digFx(h);
 }
 function putAt(x,y,z,cube,inside){
   if(visiting){visitNope();return false;}
@@ -767,7 +768,8 @@ function putAt(x,y,z,cube,inside){
   if(id>=100){if(cube)return false;const fx=-Math.sin(P.yaw),fz=-Math.cos(P.yaw),rot=Math.abs(fz)>=Math.abs(fx)?(fz<0?2:0):(fx>0?3:1);code=NSH*4+(id-100)*4+rot+1;bid=DECOR;}
   else
   if(curShape&&!cube){const fx=-Math.sin(P.yaw),fz=-Math.cos(P.yaw),rot=Math.abs(fz)>=Math.abs(fx)?(fz<0?2:0):(fx>0?3:1);code=(curShape-1)*4+rot+1;}
-  setBlock(x,y,z,bid,code);snd(330,520,'triangle');if(limit){inv[id]--;updCounts();}
+  setBlock(x,y,z,bid,code);placeFx(x,y,z,bid);if(limit){inv[id]--;updCounts();}
+  if(id===DI('Bed')){home=[x+.5,y+.01,z+.5];toast('🏠 This bed is home now');}
   if(quest&&id===quest.item)questDone();
   return true;
 }
@@ -1198,7 +1200,7 @@ renderBar();setSel(sel);
 function persist(){try{localStorage.setItem(KEY2,JSON.stringify(store));return localStorage.getItem(KEY2)!==null;}catch(e){return false;}}
 function save(){
   if(visiting)return saveOK;   // someone else's world: nothing of it is written
-  prof.data={seed,edits,sel,fly,easy,view,hot:HOT,buddy,inv,limit,friends,char:pchar,cust,spd,stars,owned,kit2:1,dt:Math.round(dayT),quest,bp:bp?{k:bp.k,x:bp.x,y:bp.y,z:bp.z,fx:bp.fx,fz:bp.fz}:null,qt:Math.round(playT),p:[P.x,P.y,P.z,P.yaw,P.pitch].map(v=>Math.round(v*100)/100)};
+  prof.data={seed,edits,sel,fly,easy,view,hot:HOT,buddy,inv,limit,friends,char:pchar,cust,spd,home,stars,owned,kit2:1,dt:Math.round(dayT),quest,bp:bp?{k:bp.k,x:bp.x,y:bp.y,z:bp.z,fx:bp.fx,fz:bp.fz}:null,qt:Math.round(playT),p:[P.x,P.y,P.z,P.yaw,P.pitch].map(v=>Math.round(v*100)/100)};
   if(played){prof.t=Date.now();played=false;}
   saveOK=persist();dirtySave=false;saveInfo();cloudTick();return saveOK;
 }
@@ -1487,6 +1489,7 @@ function drawNPCs(M,fog,under,dl){
       gl.drawArrays(gl.TRIANGLES,0,36);
     }
   }
+  drawFX(dl);
   if(!under)drawWeather();
   gl.enableVertexAttribArray(2);gl.useProgram(prog);
 }
@@ -1942,6 +1945,88 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){if(playing
   if(cOn()){   // on opening the game, look for a newer save before Play, but never keep a child waiting long
     const pb=$('play'),free=()=>{pb.disabled=false;};pb.disabled=true;cloudSync().then(free,free);setTimeout(free,8000);}
 }
+/* ---------- feel: bits that fly off a dug block, sounds that match the material, footsteps, a buzz in the hand ---------- */
+let nzBuf=null;
+function hiss(dur,freq,q,vol,type){   // a short burst of filtered noise
+  if(!ac)return;
+  try{if(!nzBuf){nzBuf=ac.createBuffer(1,Math.floor(ac.sampleRate*.5),ac.sampleRate);const d=nzBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;}
+    const s=ac.createBufferSource(),f=ac.createBiquadFilter(),g=ac.createGain(),t=ac.currentTime;s.buffer=nzBuf;f.type=type||'bandpass';f.frequency.value=freq;f.Q.value=q;
+    g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur);s.connect(f);f.connect(g);g.connect(ac.destination);s.start(t,Math.random()*.3,dur+.02);}catch(e){}
+}
+function tk(f0,f1,dur,vol,type){   // a short pitched knock
+  if(!ac)return;
+  try{const o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime;o.type=type;o.frequency.setValueAtTime(f0,t);o.frequency.exponentialRampToValueAtTime(f1,t+dur);
+    g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.001,t+dur+.02);o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+dur+.04);}catch(e){}
+}
+const buzz=ms=>{try{if(navigator.vibrate)navigator.vibrate(ms);}catch(e){}};
+// what a block is made of, by its name: soft, grit, hard, wood or glass
+const KINDS=B.map(b=>!b?'':/grass|dirt|leaves|hay|wool|red|blue|yellow|orange|green|purple|pink|black|white/i.test(b.n)?'soft':/sand|snow|gravel/i.test(b.n)?'grit':/log|plank|wood|door|fence|ladder/i.test(b.n)?'wood':/glass|ice|window|gem/i.test(b.n)?'glass':'hard');
+const kindOf=id=>{const m=id&128?id&127:id;return m===DECOR?'wood':m===WATER?'water':KINDS[m]||'hard';};
+const TCOL={};
+function tileCol(id){
+  const m=id&128?id&127:id;if(m===DECOR||!B[m])return[.62,.47,.3];
+  const t=B[m].t[0];if(TCOL[t])return TCOL[t];
+  const d=ax.getImageData((t%8)*16,(t>>3)*16,16,16).data;let r=0,g=0,b=0,n=0;for(let i=0;i<d.length;i+=4)if(d[i+3]>128){r+=d[i];g+=d[i+1];b+=d[i+2];n++;}
+  return TCOL[t]=n?[r/n/255,g/n/255,b/n/255]:[.6,.6,.6];
+}
+const bits=[];
+function burst(x,y,z,col,n,up,size){
+  for(let i=0;i<n&&bits.length<140;i++){const k=.8+Math.random()*.4;
+    bits.push({x:x+(Math.random()-.5)*.7,y:y+(Math.random()-.5)*.7,z:z+(Math.random()-.5)*.7,vx:(Math.random()-.5)*4,vy:up+Math.random()*3.5,vz:(Math.random()-.5)*4,t:.5+Math.random()*.35,s:(size||.13)*(.7+Math.random()*.6),c:[col[0]*k,col[1]*k,col[2]*k]});}
+}
+function digFx(h){
+  const k=kindOf(h.id);burst(h.x+.5,h.y+.5,h.z+.5,tileCol(h.id),11,1.5);buzz(12);
+  if(k==='soft'){hiss(.12,650,1,.3,'lowpass');tk(170,80,.07,.08,'sine');}
+  else if(k==='grit')hiss(.15,2900,.8,.22);
+  else if(k==='wood'){tk(270,140,.08,.15,'triangle');hiss(.04,900,2,.1);}
+  else if(k==='glass'){tk(1900,2700,.09,.07,'sine');tk(2500,1500,.14,.05,'sine');hiss(.06,5000,2,.06);}
+  else{tk(210,90,.07,.11,'square');hiss(.05,2400,2,.13);}
+}
+function placeFx(x,y,z,id){burst(x+.5,y+.15,z+.5,tileCol(id),4,.6,.09);tk(150,70,.1,.17,'sine');hiss(.05,1200,1,.08);buzz(8);}
+let stepD=0,fxAir=0,fxVy=0;
+function fxTick(dt,hs,flying){
+  for(let i=bits.length-1;i>=0;i--){const b=bits[i];b.t-=dt;if(b.t<=0){bits.splice(i,1);continue;}
+    b.vy-=20*dt;const ny=b.y+b.vy*dt;
+    if(b.vy<0&&SOLID[getBlock(Math.floor(b.x),Math.floor(ny-b.s*.5),Math.floor(b.z))]){b.vy*=-.3;b.vx*=.5;b.vz*=.5;}else b.y=ny;
+    b.x+=b.vx*dt;b.z+=b.vz*dt;}
+  if(flying||ride){stepD=0;fxAir=0;return;}
+  const fx=Math.floor(P.x),fz=Math.floor(P.z),under=getBlock(fx,Math.floor(P.y-.2),fz),wet=getBlock(fx,Math.floor(P.y+.3),fz)===WATER;
+  if(!P.ground){fxAir+=dt;fxVy=P.vy;}
+  else{if(fxAir>.25&&fxVy<-9&&!wet){tk(120,50,.14,.2,'sine');hiss(.09,380,1,.16,'lowpass');buzz(18);burst(P.x,P.y+.1,P.z,tileCol(under||DIRT),6,.4,.08);}fxAir=0;}
+  if((P.ground||wet)&&hs>.8){stepD+=hs*dt;
+    if(stepD>1.7){stepD=0;const k=wet?'water':kindOf(under);
+      if(k==='water')hiss(.16,1100,.6,.09);else if(k==='soft')hiss(.07,480,1,.09,'lowpass');else if(k==='grit')hiss(.09,2600,.7,.06);
+      else if(k==='wood')tk(190,120,.05,.07,'triangle');else if(k==='glass')tk(900,700,.04,.04,'sine');else{hiss(.03,1700,3,.08);tk(140,100,.03,.03,'sine');}}}
+}
+/* ---------- never lost: home is the last bed he put down (or where the world began); a tall light marks it and a button takes him there ---------- */
+function validHome(h){return Array.isArray(h)&&h.length===3&&h.every(v=>Number.isFinite(v))?[+h[0],+h[1],+h[2]]:null;}
+let home=validHome(saved&&saved.home);
+function homePt(){
+  if(!home){const s=[P.x,P.y,P.z,P.vx,P.vy,P.vz,P.yaw,P.pitch];spawn();home=[P.x,P.y,P.z];[P.x,P.y,P.z,P.vx,P.vy,P.vz,P.yaw,P.pitch]=s;}
+  return home;
+}
+function toHome(){
+  if(visiting){goHome();return;}
+  const h=homePt();P.x=h[0];P.y=h[1];P.z=h[2];P.vx=P.vy=P.vz=0;for(let i=0;i<H&&collides();i++)P.y+=1;
+  burst(P.x,P.y+1,P.z,[1,.9,.4],14,2,.1);tk(520,780,.12,.12,'sine');setTimeout(()=>tk(780,1040,.16,.12,'sine'),110);toast('🏠 Home!');dirtySave=true;
+}
+// where to draw the light: at home, or, when home is far away, pulled in along the same direction so it can always be seen
+function beamAt(){
+  if(visiting||!playing)return null;const h=homePt(),dx=h[0]-CAM[0],dz=h[2]-CAM[2],d=Math.hypot(dx,dz);if(d<14)return null;
+  const k=Math.min(d,46)/d;return[CAM[0]+dx*k,d>46?CAM[1]-40:h[1]+2.4,CAM[2]+dz*k];
+}
+hold('tHome',toHome);
+// simple-graphics drawing of the bits and the light (the 3D renderer has its own)
+function drawFX(dl){
+  gl.useProgram(cprog);gl.bindBuffer(gl.ARRAY_BUFFER,cubeBuf);gl.vertexAttribPointer(0,3,gl.FLOAT,false,16,0);gl.vertexAttribPointer(1,1,gl.FLOAT,false,16,12);
+  gl.uniform2f(CU.rot,1,0);gl.uniform3f(CU.off,0,0,0);gl.uniform1f(CU.al,1);
+  for(const b of bits){gl.uniform3f(CU.pos,b.x,b.y-b.s*.5,b.z);gl.uniform3f(CU.size,b.s,b.s,b.s);gl.uniform3f(CU.col,b.c[0],b.c[1],b.c[2]);gl.drawArrays(gl.TRIANGLES,0,36);}
+  const bm=beamAt();
+  if(bm){gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);gl.uniform1f(CU.day,1.3);gl.uniform2f(CU.fr,900,1000);gl.uniform3f(CU.col,1,.88,.45);
+    gl.uniform1f(CU.al,.4);gl.uniform3f(CU.pos,bm[0],bm[1],bm[2]);gl.uniform3f(CU.size,1.5,240,1.5);gl.drawArrays(gl.TRIANGLES,0,36);
+    gl.uniform1f(CU.al,.7);gl.uniform3f(CU.size,.6,240,.6);gl.drawArrays(gl.TRIANGLES,0,36);
+    gl.depthMask(true);gl.disable(gl.BLEND);gl.uniform1f(CU.day,dl);gl.uniform1f(CU.al,1);}
+}
 /* ---------- 3D lighting renderer (three.js): real sun shadows and lamp light. Same world, same controls. ---------- */
 let T3=null,lowFps=0,lowFps2=0,warned3=false;
 function init3(){
@@ -1975,7 +2060,10 @@ function init3(){
   const ghost=new THREE.InstancedMesh(cube,new THREE.MeshBasicMaterial({color:0xfff28a,transparent:true,opacity:.26,depthWrite:false}),160);ghost.frustumCulled=false;ghost.count=0;scene.add(ghost);
   const tgt=new THREE.Mesh(cube,new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.3,depthWrite:false}));
   tgt.add(new THREE.LineSegments(new THREE.EdgesGeometry(cube),new THREE.LineBasicMaterial({color:0x000000})));tgt.visible=false;scene.add(tgt);
-  T3={UG,UT,r,scene,camera,matSolid,matGlow,matWater,hemi,sun,lamps,box,sunM,moonM,stars,clouds,cloudMat,rain,ghost,tgt,ents:new Map(),mats:new Map(),dummy:new THREE.Object3D(),frame:0};
+  const bitsM=new THREE.InstancedMesh(box,new THREE.MeshLambertMaterial(),140);bitsM.frustumCulled=false;bitsM.count=0;bitsM.setColorAt(0,new THREE.Color(1,1,1));scene.add(bitsM);
+  const beam=new THREE.Group(),bmat=o=>new THREE.MeshBasicMaterial({color:0xffe070,transparent:true,opacity:o,fog:false,depthWrite:false});
+  for(const[w,o]of[[1.5,.4],[.6,.7]]){const m=new THREE.Mesh(box,bmat(o));m.scale.set(w,240,w);beam.add(m);}beam.visible=false;scene.add(beam);
+  T3={bitsM,beam,col:new THREE.Color(),UG,UT,r,scene,camera,matSolid,matGlow,matWater,hemi,sun,lamps,box,sunM,moonM,stars,clouds,cloudMat,rain,ghost,tgt,ents:new Map(),mats:new Map(),dummy:new THREE.Object3D(),frame:0};
 }
 // Turn the chunk's corner list (7 numbers a corner, 4 corners a face) into three.js meshes. Glowing faces go to an unlit mesh.
 function upload3(v,ix,c,water){
@@ -2060,6 +2148,9 @@ function render3(){
       if(cov)continue;D.position.set(x,y,z);if(snow)D.scale.set(.08,.08,.08);else D.scale.set(.03,.55,.03);D.updateMatrix();t.rain.setMatrixAt(rc++,D.matrix);}
     t.rain.instanceMatrix.needsUpdate=true;}
   t.rain.count=rc;
+  {const D=t.dummy;let i=0;for(const b of bits){D.position.set(b.x,b.y-b.s*.5,b.z);D.scale.set(b.s,b.s,b.s);D.updateMatrix();t.bitsM.setMatrixAt(i,D.matrix);t.bitsM.setColorAt(i,t.col.setRGB(b.c[0],b.c[1],b.c[2]));i++;}
+   t.bitsM.count=i;if(i){t.bitsM.instanceMatrix.needsUpdate=true;t.bitsM.instanceColor.needsUpdate=true;}
+   const bm=beamAt();t.beam.visible=!!bm;if(bm)t.beam.position.set(bm[0],bm[1],bm[2]);}
   // the plan outline and the block being looked at
   let gc=0;
   if(bp&&!visiting){const now=performance.now();if(!bpLeft||now-bpLeftT>300){bpLeft=bpRemain();bpLeftT=now;}
@@ -2094,7 +2185,7 @@ function applyData(d){
   seed=(d&&d.seed)|0||((Math.random()*2147483647)|0);edits=(d&&d.edits)||{};
   easy=!(d&&d.easy===false);$('easy').checked=easy;playT=+(d&&d.qt)||0;
   if(d&&d.p&&d.p.length===5){[P.x,P.y,P.z,P.yaw,P.pitch]=d.p;P.vx=P.vy=P.vz=0;}else spawn();
-  inv=validInv(d&&d.inv);loadWallet(d);updStars();limit=!(d&&d.limit===false);$('limit').checked=limit;friends=validFriends(d&&d.friends);cust=validCust(d&&d.cust);buildCust();setChar(d&&d.char);setSpd(d&&d.spd);curShape=0;
+  inv=validInv(d&&d.inv);loadWallet(d);updStars();limit=!(d&&d.limit===false);$('limit').checked=limit;friends=validFriends(d&&d.friends);home=validHome(d&&d.home);cust=validCust(d&&d.cust);buildCust();setChar(d&&d.char);setSpd(d&&d.spd);curShape=0;
   HOT=validHot(d&&d.hot);renderBar();buddy=validBuddy(d&&d.buddy);npcs.length=0;renderBuddies();setView(d&&d.view===0?0:1);
   setSel((d&&d.sel)|0);setFly(!!(d&&d.fly));playLabel();
 }
@@ -2164,7 +2255,7 @@ function cleanData(d){
     const o={};for(const i in d.edits[k]){const v=d.edits[k][i]|0,m=v&255,cd=v>>8;if(/^\d{1,5}$/.test(i)&&+i<16*16*H&&v>=0&&m<B.length&&cd<=SHB.length&&(cd===0||m>0))o[i]=v;}
     edits[k]=o;}
   const p=Array.isArray(d.p)&&d.p.length===5&&d.p.every(v=>typeof v==='number'&&isFinite(v))?d.p:undefined;
-  return{seed:d.seed|0,edits,hot:validHot(d.hot),buddy:validBuddy(d.buddy),view:d.view===0?0:1,inv:validInv(d.inv),stars:Math.max(0,Math.min(99999,d.stars|0)),owned:Array.isArray(d.owned)?d.owned.filter(k=>typeof k==='string').slice(0,20):[],kit2:d.kit2?1:0,dt:Math.max(0,Math.min(DAYLEN,+d.dt||0)),quest:validQuest(d.quest),bp:validBP(d.bp),limit:d.limit!==false,friends:validFriends(d.friends),char:validChar(d.char),cust:validCust(d.cust),spd:[0,1,2].includes(d.spd)?d.spd:1,sel:d.sel|0,fly:!!d.fly,easy:d.easy!==false,qt:Math.max(0,Math.min(QUIZ_EVERY,+d.qt||0)),p};
+  return{seed:d.seed|0,edits,hot:validHot(d.hot),buddy:validBuddy(d.buddy),view:d.view===0?0:1,inv:validInv(d.inv),stars:Math.max(0,Math.min(99999,d.stars|0)),owned:Array.isArray(d.owned)?d.owned.filter(k=>typeof k==='string').slice(0,20):[],kit2:d.kit2?1:0,dt:Math.max(0,Math.min(DAYLEN,+d.dt||0)),quest:validQuest(d.quest),bp:validBP(d.bp),limit:d.limit!==false,friends:validFriends(d.friends),char:validChar(d.char),cust:validCust(d.cust),home:validHome(d.home),spd:[0,1,2].includes(d.spd)?d.spd:1,sel:d.sel|0,fly:!!d.fly,easy:d.easy!==false,qt:Math.max(0,Math.min(QUIZ_EVERY,+d.qt||0)),p};
 }
 function cleanProf(p){
   if(!p||typeof p.name!=='string'||!p.name.trim())return null;
@@ -2257,7 +2348,7 @@ function update(dt){
   }
   P.wall=wall;
   if(P.ground&&!flying&&(decorAt(fx,Math.floor(P.y+.1),fz)===D_TRAMP||decorAt(fx,Math.floor(P.y-.5),fz)===D_TRAMP)){P.vy=12.5;P.ground=false;snd(300,900,'sine');}
-  const hs=Math.hypot(P.vx,P.vz),onG=!flying||!!SOLID[getBlock(Math.floor(P.x),Math.floor(P.y-.15),Math.floor(P.z))];P.amp+=((hs>.5&&onG?1:0)-P.amp)*Math.min(1,dt*8);P.t+=dt*(1+hs*.25);
+  const hs=Math.hypot(P.vx,P.vz),onG=!flying||!!SOLID[getBlock(Math.floor(P.x),Math.floor(P.y-.15),Math.floor(P.z))];P.amp+=((hs>.5&&onG?1:0)-P.amp)*Math.min(1,dt*8);fxTick(dt,hs,flying);P.t+=dt*(1+hs*.25);
 }
 
 /* ---------- chunk streaming ---------- */
