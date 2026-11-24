@@ -172,7 +172,9 @@ button.grown::after{content:'';position:absolute;left:0;top:0;bottom:0;width:0;b
 button.grown.hold::after{width:100%;transition:width 2s linear}
 #grown .pk{max-width:720px;text-align:left}#grown h3{font-size:22px;text-align:center}
 #grown label.opt{font-size:16px;margin-bottom:16px;line-height:1.4}#grown label.opt input{width:24px;height:24px;vertical-align:-5px;margin-right:10px}
-.gbtn{gap:10px;justify-content:flex-start;margin:6px 0 16px}.gbtn button.small{font-size:16px;padding:12px 16px;border-radius:8px}
+.gbtn,.cbtn{gap:10px;justify-content:flex-start;margin:6px 0 16px}.gbtn button.small,.cbtn button.small{font-size:16px;padding:12px 16px;border-radius:8px}
+#cloudBox p{font-size:14px;line-height:1.5;margin:4px 0 10px;opacity:.85}#cloudBox input{display:block;width:100%;box-sizing:border-box;font:inherit;font-size:16px;padding:12px;margin:0 0 10px;border-radius:8px;border:1px solid rgba(255,255,255,.4);background:rgba(0,0,0,.35);color:#fff}
+#cloudMsg{font-size:14px;min-height:20px}#cloudMsg.warn{color:#ffb0a0}#cloudLine{font-size:13px;opacity:.75;margin:-16px 0 20px;min-height:16px}button.big:disabled{opacity:.5}
 #grown details{font-size:15px;margin-bottom:14px}#grown summary{cursor:pointer;padding:8px 0;font-size:16px}
 #grown table{font-size:14px;margin:8px 0}#grown #grownClose{display:block;margin:0 auto}
 </style>
@@ -234,7 +236,7 @@ button.grown.hold::after{width:100%;transition:width 2s linear}
     <div class="row"><button class="mid" id="addOk">Add player</button><button class="small" id="addCancel">Cancel</button></div>
   </div>
   <button class="big" id="play">Play</button>
-  <div id="saveInfo"></div>
+  <div id="saveInfo"></div><div id="cloudLine"></div>
   <div id="charRow"><div class="lbl">Me</div><div id="chars" class="row"></div></div>
   <div id="buddyRow"><div class="lbl">My buddy</div><div id="buddies" class="row"></div></div>
   <button class="grown" id="grownOpen">🔒 Grown-ups: hold for 2 seconds</button>
@@ -248,6 +250,13 @@ button.grown.hold::after{width:100%;transition:width 2s linear}
   <label class="opt" for="limit"><input type="checkbox" id="limit">Blocks must be earned: dig them up, or win them by answering questions</label>
   <label class="opt" for="easy"><input type="checkbox" id="easy">Easy mode: runs whichever way the stick points, steps up blocks and floats in water by itself, longer reach</label>
   <div class="row gbtn"><button class="small" id="xferOpen">Save to a file / Load a file</button><button class="small" id="visitOpen">Visit a player's world</button><button class="small" id="reportOpen">Grown-ups: quiz report</button><button class="small" id="testOpen">Quarter 2 test</button><button class="small" id="tryQuiz">Try a quiz question</button><button class="small" id="newWorld">New world</button><button class="small" id="renProf">Rename player</button><button class="small" id="delProf">Delete player</button></div>
+  <details id="cloudBox"><summary>Saves that travel between devices</summary>
+    <p>Each player is copied to your own online database, so any device with the same family code carries on from the newest save. Turn it on once on every device.</p>
+    <input id="cloudUrl" placeholder="Database address: https://….firebaseio.com" inputmode="url" autocapitalize="off" autocomplete="off" spellcheck="false">
+    <input id="cloudCode" placeholder="Family code" autocapitalize="off" autocomplete="off" spellcheck="false">
+    <div class="row cbtn"><button class="small" id="cloudNew">Make a new code</button><button class="small" id="cloudOn">Turn on</button><button class="small" id="cloudNow">Sync now</button><button class="small" id="cloudOff">Turn off</button></div>
+    <div id="cloudMsg"></div>
+  </details>
   <details><summary>How to play</summary>
   <table>
     <tr class="tc"><td>Left thumb</td><td>the round stick: he runs whichever way you push it</td></tr>
@@ -777,15 +786,16 @@ function pick(dir){const tp=dir&&view,h=raycast((easy?8:6)+(tp?camD:0),dir,tp?CA
 const keys={};let playing=false,locked=false,drag=null,mineHeld=false,mineT=0,placeHeld=false,placeT=0,isTouch=false;
 let stick=null,lookT=null,tsx=0,tsy=0;
 function look(dx,dy){const k=easy?.0016:.0024;P.yaw-=dx*k;P.pitch=Math.max(-1.55,Math.min(1.55,P.pitch-dy*k));}
+let lastInput=0;for(const n of['pointerdown','pointermove','touchstart','touchmove','keydown'])addEventListener(n,()=>{lastInput=performance.now();},{passive:true,capture:true});
 function startGame(){
-  if(!gl&&!T3)return;
+  if(!gl&&!T3)return;lastInput=performance.now();
   menu.classList.add('off');playing=true;last=performance.now();unlockVoice();
   try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});}catch(e){}
   try{if(!ac){const A=window.AudioContext||window.webkitAudioContext;if(A)ac=new A();}if(ac&&ac.state==='suspended')ac.resume();}catch(e){}
   if(!isTouch){try{const r=cv.requestPointerLock();if(r&&r.catch)r.catch(()=>{});}catch(e){}}
   else{try{const el=document.documentElement,r=!document.fullscreenElement&&el.requestFullscreen&&el.requestFullscreen();if(r&&r.catch)r.catch(()=>{});}catch(e){}}
 }
-function pause(){$('picker').classList.add('off');$('friendsP').classList.add('off');$('shapesP').classList.add('off');$('storeP').classList.add('off');$('plansP').classList.add('off');pickerOpen=false;playing=false;mineHeld=placeHeld=false;repFn=null;resetStick();drag=null;for(const k in keys)keys[k]=false;menu.classList.remove('off');$('play').textContent='Resume';save();
+function pause(){setTimeout(()=>cloudTick(true),300);$('picker').classList.add('off');$('friendsP').classList.add('off');$('shapesP').classList.add('off');$('storeP').classList.add('off');$('plansP').classList.add('off');pickerOpen=false;playing=false;mineHeld=placeHeld=false;repFn=null;resetStick();drag=null;for(const k in keys)keys[k]=false;menu.classList.remove('off');$('play').textContent='Resume';save();
   if(document.pointerLockElement)document.exitPointerLock();}
 $('play').addEventListener('click',startGame);
 $('easy').checked=easy;$('easy').addEventListener('change',e=>{easy=e.target.checked;save();});
@@ -1175,7 +1185,7 @@ function save(){
   if(visiting)return saveOK;   // someone else's world: nothing of it is written
   prof.data={seed,edits,sel,fly,easy,view,hot:HOT,buddy,inv,limit,friends,char:pchar,stars,owned,kit2:1,dt:Math.round(dayT),quest,bp:bp?{k:bp.k,x:bp.x,y:bp.y,z:bp.z,fx:bp.fx,fz:bp.fz}:null,qt:Math.round(playT),p:[P.x,P.y,P.z,P.yaw,P.pitch].map(v=>Math.round(v*100)/100)};
   if(played){prof.t=Date.now();played=false;}
-  saveOK=persist();dirtySave=false;saveInfo();return saveOK;
+  saveOK=persist();dirtySave=false;saveInfo();cloudTick();return saveOK;
 }
 let saveOK=true,saveBtnT=0;
 const fmtT=t=>new Date(t).toLocaleString([],{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
@@ -1187,7 +1197,7 @@ function saveInfo(){
 function playLabel(){$('play').textContent=prof.t?'Continue':'Play';saveInfo();}
 function doSave(){
   if(visiting){toast('You are visiting. Your own world is already saved.');return;}
-  played=true;const ok=save(),b=$('saveBtn');
+  played=true;const ok=save(),b=$('saveBtn');cloudTick(true);
   toast(ok?'Game saved ✔':'Could not save in this browser. Pause and use "Save to a file".');
   if(ok){snd(520,780,'sine');b.textContent='✔ Saved';b.classList.add('done');clearTimeout(saveBtnT);saveBtnT=setTimeout(()=>{b.textContent='💾 Save';b.classList.remove('done');},1800);}
 }
@@ -1787,6 +1797,77 @@ function groundBelow(x,y,z){
     if(b<128)return yy+1;const cd=shCode(bx,yy,bz);if(cd===undefined||SHPASS[cd])continue;return yy+SHTOP[cd];}
   return null;
 }
+/* ---------- saves that travel: each player is copied to a Firebase database under a family code, newest save wins ---------- */
+const CLOUD_READY=false;   // set true to show the "Saves that travel" section
+const CLOUD_URL='';   // the family's database address, filled in at build time once it exists; until then it is typed in the Grown-ups panel
+const cloud=store.cloud&&typeof store.cloud==='object'?store.cloud:(store.cloud={url:'',code:'',on:false});
+if(!cloud.gone||typeof cloud.gone!=='object')cloud.gone={};
+const CWORDS='ant bat bear bee bird boat book cake cat cow crab cup deer dog door duck egg fish flag fox frog goat hat hen hill jam key kite lamp leaf lion map milk moon nest owl pear pig pond rain ring road rock seal ship shoe sky snow star sun tent tree van wave wolf yak zip'.split(' ');
+const cUrl=()=>(CLOUD_URL||cloud.url||'').replace(/\/+$/,''),cOn=()=>!!(CLOUD_READY&&cloud.on&&cUrl()&&cloud.code);
+const cUrlOK=u=>/^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.(firebaseio\.com|firebasedatabase\.app)\/?$/i.test(u);
+const cCodeOK=c=>/^[a-z0-9-]{12,40}$/.test(c);
+let cBusy=false,cLast=0,cAgain=false;
+function cStatus(t,bad){$('cloudMsg').textContent=t;$('cloudMsg').className=bad?'warn':'';$('cloudLine').textContent=cOn()?'☁️ '+t:'';}
+async function cReq(method,p,body){
+  const ctl=new AbortController(),tm=setTimeout(()=>ctl.abort(),15000);
+  try{const r=await fetch(cUrl()+'/saves/'+cloud.code+'/'+p+'.json',{method,body:body===undefined?undefined:JSON.stringify(body),signal:ctl.signal});
+    if(!r.ok)throw new Error(r.status===401||r.status===403?'denied':'http');return await r.json();}
+  finally{clearTimeout(tm);}
+}
+const packProf=p=>JSON.stringify({id:p.id,name:p.name,av:p.av,t:p.t,right:p.right,asked:p.asked,sk:p.sk,tests:p.tests,data:p.data});
+// One pass: take what is newer online, send what is newer here. The world of a child who is playing is never swapped under them.
+async function cloudSync(){
+  if(!cOn())return;if(cBusy){cAgain=true;return;}
+  cBusy=true;cLast=Date.now();cStatus('Checking the online saves…');
+  try{
+    if(playing&&!visiting)save();
+    for(const id in cloud.gone){await cReq('PUT','idx/'+id,-cloud.gone[id]);await cReq('DELETE','p/'+id);delete cloud.gone[id];}
+    const idx=await cReq('GET','idx')||{},got=[];let curHit=false,changed=false;
+    for(const id in idx){
+      if(!/^[a-z0-9]{1,24}$/i.test(id))continue;
+      const rt=+idx[id]||0,ex=store.profiles[id],busy=id===store.cur&&playing;
+      if(rt<0){   // deleted on another device, and not played here since
+        if(ex&&-rt>=(ex.t||0)&&!busy&&Object.keys(store.profiles).length>1){delete store.profiles[id];changed=true;
+          if(id===store.cur){store.cur=Object.keys(store.profiles)[0];curHit=true;}}
+        continue;}
+      if(busy||(ex?rt<=(ex.t||0):Object.keys(store.profiles).length>=MAXP))continue;
+      let c=null;try{c=cleanProf(JSON.parse(await cReq('GET','p/'+id)));}catch(e){if(e.message==='denied'||e.message==='http'||e.name==='AbortError')throw e;}
+      if(!c||c.id!==id)continue;
+      store.profiles[id]=c;got.push(c.name);changed=true;if(id===store.cur)curHit=true;
+    }
+    if(got.length)for(const p of Object.values(store.profiles)){   // a never-played default player makes way
+      if(p.name==='Player 1'&&!p.t&&!p.asked&&!(p.id===store.cur&&playing)&&Object.keys(store.profiles).length>1){
+        delete store.profiles[p.id];if(p.id===store.cur){store.cur=Object.keys(store.profiles)[0];curHit=true;}}}
+    let sent=0;
+    for(const p of Object.values(store.profiles)){
+      if(!p.t||!p.data||Math.abs(+idx[p.id]||0)>=p.t)continue;
+      await cReq('PUT','p/'+p.id,packProf(p));await cReq('PUT','idx/'+p.id,p.t);sent++;}
+    if(curHit){prof=store.profiles[store.cur];applyData(prof.data);}
+    if(changed||curHit){persist();renderProfiles();renderChars();renderBuddies();}else persist();
+    cStatus((got.length?'Loaded '+got.join(', ')+' from online. ':'')+'Online saves are up to date ('+fmtT(Date.now())+')');
+  }catch(e){cStatus(e&&e.message==='denied'?'The database refused the save. Check its rules and the family code.':'Could not reach the online saves. The game still saves on this device and will try again.',true);}
+  cBusy=false;if(cAgain){cAgain=false;cloudSync();}
+}
+// while playing: send at most once a minute; straight away on Save, on pause and when the game is put away
+function cloudTick(now){if(cOn()&&!cBusy&&prof.t&&(now||Date.now()-cLast>60000)&&(now||prof.t>cLast))cloudSync();}
+// Putting the game away pauses it and sends the save; coming back looks for a newer one from another device.
+document.addEventListener('visibilitychange',()=>{if(document.hidden){if(playing){save();pause();}else cloudTick(true);}else if(!playing)cloudSync();});
+{
+  const u=$('cloudUrl'),c=$('cloudCode'),show=()=>{u.value=cloud.url||'';c.value=cloud.code||'';u.classList.toggle('off',!!CLOUD_URL);
+    $('cloudOn').classList.toggle('off',cOn());$('cloudOff').classList.toggle('off',!cOn());$('cloudNow').classList.toggle('off',!cOn());$('cloudNew').classList.toggle('off',cOn());u.disabled=c.disabled=cOn();};
+  $('cloudNew').addEventListener('click',()=>{const r=new Uint32Array(4);crypto.getRandomValues(r);c.value=[0,1,2].map(i=>CWORDS[r[i]%CWORDS.length]).join('-')+'-'+String(r[3]%100000).padStart(5,'0');
+    cStatus('New code made. Write it down: other devices need this exact code.');});
+  $('cloudOn').addEventListener('click',()=>{
+    const url=u.value.trim(),code=c.value.trim().toLowerCase().replace(/\s+/g,'-');
+    if(!CLOUD_URL&&!cUrlOK(url)){cStatus('That database address does not look right. It ends in firebaseio.com or firebasedatabase.app.',true);return;}
+    if(!cCodeOK(code)){cStatus('The family code needs at least 12 letters or numbers. Tap "Make a new code" on the first device.',true);return;}
+    cloud.url=url;cloud.code=code;cloud.on=true;persist();show();cloudSync();});
+  $('cloudOff').addEventListener('click',()=>{cloud.on=false;persist();show();cStatus('Turned off on this device. The online copy is untouched.');});
+  $('cloudNow').addEventListener('click',()=>cloudSync());
+  show();$('cloudBox').classList.toggle('off',!CLOUD_READY);
+  if(cOn()){   // on opening the game, look for a newer save before Play, but never keep a child waiting long
+    const pb=$('play'),free=()=>{pb.disabled=false;};pb.disabled=true;cloudSync().then(free,free);setTimeout(free,8000);}
+}
 /* ---------- 3D lighting renderer (three.js): real sun shadows and lamp light. Same world, same controls. ---------- */
 let T3=null,lowFps=0,lowFps2=0,warned3=false;
 function init3(){
@@ -1981,7 +2062,7 @@ $('delProf').addEventListener('click',()=>{
   if(ids.length<2){b.textContent='Add another player first';setTimeout(()=>b.textContent='Delete player',2500);return;}
   if(Date.now()-armDel>4000){armDel=Date.now();b.textContent='Tap again to delete '+prof.name;setTimeout(()=>{if(armDel)b.textContent='Delete player';},4000);return;}
   armDel=0;b.textContent='Delete player';
-  const gone=store.cur;store.cur=ids.find(i=>i!==gone);delete store.profiles[gone];prof=store.profiles[store.cur];applyData(prof.data);persist();renderProfiles();
+  const gone=store.cur;store.cur=ids.find(i=>i!==gone);delete store.profiles[gone];if(cOn()){cloud.gone[gone]=Date.now();setTimeout(cloudSync,0);}prof=store.profiles[store.cur];applyData(prof.data);persist();renderProfiles();
 });
 
 /* ---------- export / import ---------- */
@@ -2011,6 +2092,11 @@ function cleanData(d){
   const p=Array.isArray(d.p)&&d.p.length===5&&d.p.every(v=>typeof v==='number'&&isFinite(v))?d.p:undefined;
   return{seed:d.seed|0,edits,hot:validHot(d.hot),buddy:validBuddy(d.buddy),view:d.view===0?0:1,inv:validInv(d.inv),stars:Math.max(0,Math.min(99999,d.stars|0)),owned:Array.isArray(d.owned)?d.owned.filter(k=>typeof k==='string').slice(0,20):[],kit2:d.kit2?1:0,dt:Math.max(0,Math.min(DAYLEN,+d.dt||0)),quest:validQuest(d.quest),bp:validBP(d.bp),limit:d.limit!==false,friends:validFriends(d.friends),char:validChar(d.char),sel:d.sel|0,fly:!!d.fly,easy:d.easy!==false,qt:Math.max(0,Math.min(QUIZ_EVERY,+d.qt||0)),p};
 }
+function cleanProf(p){
+  if(!p||typeof p.name!=='string'||!p.name.trim())return null;
+  return{id:String(p.id||newId()).replace(/[^a-z0-9]/gi,'').slice(0,24)||newId(),name:p.name.trim().slice(0,12),av:AVS.includes(p.av)?p.av:15,
+    t:+p.t||0,right:Math.max(0,p.right|0),asked:Math.max(0,p.asked|0),sk:cleanSk(p.sk),tests:cleanTests(p.tests),data:cleanData(p.data)};
+}
 function importText(text){
   let d=null;try{d=JSON.parse(text);}catch(e){}
   if(!d||d.app!=='blockyard'||!Array.isArray(d.profiles)){xmsg('That is not a Blockyard export. Nothing was changed.');return;}
@@ -2018,8 +2104,7 @@ function importText(text){
   const added=[],updated=[],kept=[],full=[];let curHit=false;
   for(const p of d.profiles){
     if(!p||typeof p.name!=='string'||!p.name.trim())continue;
-    const c={id:String(p.id||newId()).replace(/[^a-z0-9]/gi,'').slice(0,24)||newId(),name:p.name.trim().slice(0,12),av:AVS.includes(p.av)?p.av:15,
-      t:+p.t||0,right:Math.max(0,p.right|0),asked:Math.max(0,p.asked|0),sk:cleanSk(p.sk),tests:cleanTests(p.tests),data:cleanData(p.data)};
+    const c=cleanProf(p);
     const ex=store.profiles[c.id];
     if(!ex){if(Object.keys(store.profiles).length>=MAXP){full.push(c.name);continue;}store.profiles[c.id]=c;added.push(c.name);}
     else if(c.t>=(ex.t||0)){store.profiles[c.id]=c;updated.push(c.name);if(c.id===store.cur)curHit=true;}
@@ -2054,7 +2139,7 @@ $('xpaste').addEventListener('click',()=>{const t=$('xtext').value.trim();if(t)i
 function update(dt){
   const c=chunks.get((Math.floor(P.x)>>4)+','+(Math.floor(P.z)>>4));
   if(!c||!c.meshed)return;
-  played=true;
+  if(performance.now()-lastInput<30000)played=true;   // a game left open and untouched does not count as newer play
   if(mineHeld){mineT-=dt;if(mineT<=0){mine();mineT=.22;}}
   if(placeHeld){placeT-=dt;if(placeT<=0){place();placeT=.3;}}
   if(repFn){repT-=dt;if(repT<=0){repFn();repT=.28;}}
@@ -2098,7 +2183,7 @@ function update(dt){
   }
   P.wall=wall;
   if(P.ground&&!flying&&(decorAt(fx,Math.floor(P.y+.1),fz)===D_TRAMP||decorAt(fx,Math.floor(P.y-.5),fz)===D_TRAMP)){P.vy=12.5;P.ground=false;snd(300,900,'sine');}
-  const hs=Math.hypot(P.vx,P.vz);P.amp+=((hs>.5&&!flying?1:0)-P.amp)*Math.min(1,dt*8);P.t+=dt*(1+hs*.25);
+  const hs=Math.hypot(P.vx,P.vz),onG=!flying||!!SOLID[getBlock(Math.floor(P.x),Math.floor(P.y-.15),Math.floor(P.z))];P.amp+=((hs>.5&&onG?1:0)-P.amp)*Math.min(1,dt*8);P.t+=dt*(1+hs*.25);
 }
 
 /* ---------- chunk streaming ---------- */
