@@ -1,5 +1,5 @@
 // Blockyard offline support. Change VERSION whenever you upload a new index.html.
-const VERSION='blockyard-20261124-144312';
+const VERSION='blockyard-20261125-101037';
 const FILES=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png','apple-touch-icon.png','three.min.js','wcaudio.json'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(VERSION).then(c=>c.addAll(FILES)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==VERSION).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});

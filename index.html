@@ -812,7 +812,7 @@ function pick(dir){const tp=dir&&view,h=raycast((easy?8:6)+(tp?camD:0),dir,tp?CA
 const keys={};let playing=false,locked=false,drag=null,mineHeld=false,mineT=0,placeHeld=false,placeT=0,isTouch=false;
 let stick=null,lookT=null,tsx=0,tsy=0;
 // second stick: how far it is pushed sets how fast the view turns
-let lx=0,ly=0;
+let lx=0,ly=0,lkRamp=0,lkIdle=0;
 {const el=$('stick2'),kn=$('knob2');let id=null;
  const set=e=>{const r=el.getBoundingClientRect();lx=Math.max(-1,Math.min(1,(e.clientX-r.left-r.width/2)/50));ly=Math.max(-1,Math.min(1,(e.clientY-r.top-r.height/2)/50));kn.style.transform='translate('+lx*42+'px,'+ly*42+'px)';};
  const end=e=>{if(e.pointerId!==id)return;id=null;lx=ly=0;kn.style.transform='';};
@@ -2328,9 +2328,17 @@ function update(dt){
   if(mineHeld){mineT-=dt;if(mineT<=0){mine();mineT=.22;}}
   if(placeHeld){placeT-=dt;if(placeT<=0){place();placeT=.3;}}
   if(repFn){repT-=dt;if(repT<=0){repFn();repT=.28;}}
-  const lk=Math.hypot(lx,ly)>.15;
-  if(lk){P.yaw-=lx*Math.abs(lx)*2.1*dt;P.pitch=Math.max(-1.55,Math.min(1.55,P.pitch-ly*Math.abs(ly)*1.3*dt));}
+  // Look stick. In Easy mode it is made for small hands: it turns left-right or tilts up-down but never both at once,
+  // starts gently so a slip does not spin the view, moves slower, and cannot point at the sky or straight down.
+  const lk=Math.hypot(lx,ly)>(easy?.25:.15);
+  if(lk){lkIdle=0;
+    if(easy){lkRamp=Math.min(1,lkRamp+dt*2.5);const side=Math.abs(lx)>=Math.abs(ly)*.7;
+      if(side)P.yaw-=lx*1.5*lkRamp*dt;else P.pitch=Math.max(-1.1,Math.min(.7,P.pitch-ly*.8*lkRamp*dt));}
+    else{P.yaw-=lx*Math.abs(lx)*2.1*dt;P.pitch=Math.max(-1.55,Math.min(1.55,P.pitch-ly*Math.abs(ly)*1.3*dt));}
+  }else{lkRamp=0;lkIdle=lookT||drag?0:lkIdle+dt;}
   const dead=Math.hypot(tsx,tsy)<.18,jx=dead?0:tsx,jy=dead?0:tsy;
+  // once he is running again and has left the view alone for a moment, it levels itself
+  if(easy&&view&&!dead&&lkIdle>1)P.pitch+=(-.2-P.pitch)*Math.min(1,dt*1.5);
   const kx=(keys.KeyD||keys.ArrowRight?1:0)-(keys.KeyA||keys.ArrowLeft?1:0);
   const tank=easy&&!view,rel=easy&&view;   // close-up view: stick turns. Far view: run whichever way the stick points
   let fwd=(keys.KeyW||keys.ArrowUp?1:0)-(keys.KeyS||keys.ArrowDown?1:0)-jy;
@@ -2341,7 +2349,7 @@ function update(dt){
   if(rel){
     if(len>.15){
       const want=Math.atan2(-wx,-wz);let df=want-P.face;df=Math.atan2(Math.sin(df),Math.cos(df));P.face+=df*Math.min(1,dt*12);
-      if(!lookT&&!drag&&!lk)P.yaw+=Math.sin(want-P.yaw)*.4*dt*Math.min(1,len);   // camera drifts round behind him
+      if(!lookT&&!drag&&!lk)P.yaw+=Math.sin(want-P.yaw)*.7*dt*Math.min(1,len);   // camera drifts round behind him
     }
   }else P.face=P.yaw;
   const fx=Math.floor(P.x),fz=Math.floor(P.z);
